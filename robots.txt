@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://heilpraktiker-michael-segler.vercel.app/sitemap.xml

@@ -1,0 +1,16 @@
+{
+  "name": "Praxis für TCM & Homöopathie – Michael Segler",
+  "short_name": "TCM Segler",
+  "description": "Praxis für Traditionelle Chinesische Medizin, Akupunktur & Homöopathie in München Neuhausen. Heilpraktiker Michael Segler.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fbf9f5",
+  "theme_color": "#ba442a",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
