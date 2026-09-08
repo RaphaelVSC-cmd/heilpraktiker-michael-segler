@@ -27,8 +27,31 @@ try {
   console.warn('Lenis Smooth Scroll konnte nicht initialisiert werden:', e);
 }
 
-// Lenis-Anker für interne Links
-document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+// Zentralisierte Scroll-Lock & Unlock-Steuerung (Verhindert Scroll-Lock Deadlocks)
+function unlockScroll() {
+  const anyModalOpen = document.querySelector('.legal-modal-backdrop.open');
+  const isMobileMenuOpen = document.getElementById('mobileMenu')?.classList.contains('is-open');
+
+  if (!anyModalOpen && !isMobileMenuOpen) {
+    document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
+    if (lenis) {
+      lenis.start();
+    }
+  }
+}
+
+function lockScroll() {
+  document.body.style.overflow = 'hidden';
+  document.documentElement.style.overflow = 'hidden';
+  if (lenis) {
+    lenis.stop();
+  }
+}
+
+// Lenis-Anker für reguläre Desktop-Links
+// (Mobile Links werden in initMobileNav mit exaktem 60ms-Puffer separat gesteuert)
+document.querySelectorAll('a[href^="#"]:not(.mobile-nav-link):not(#mobileMenu a)').forEach((anchor) => {
   anchor.addEventListener('click', (e) => {
     const id = anchor.getAttribute('href');
     if (id && id !== '#' && !anchor.hasAttribute('data-modal-open')) {
@@ -176,7 +199,7 @@ function initHeader() {
   );
 }
 
-// === 8. MOBILE NAVIGATION ===
+// === 8. MOBILE NAVIGATION (Mit Scroll-Lock & 60ms Smooth Scroll Puffer) ===
 function initMobileNav() {
   const hamburger = document.getElementById('hamburger');
   const menu = document.getElementById('mobileMenu');
@@ -188,16 +211,14 @@ function initMobileNav() {
     menu.setAttribute('aria-hidden', 'false');
     menu.removeAttribute('hidden');
     hamburger.setAttribute('aria-expanded', 'true');
-    document.body.style.overflow = 'hidden';
-    if (lenis) lenis.stop();
+    lockScroll();
   };
 
   const close = () => {
     menu.classList.remove('is-open');
     menu.setAttribute('aria-hidden', 'true');
     hamburger.setAttribute('aria-expanded', 'false');
-    document.body.style.overflow = '';
-    if (lenis) lenis.start();
+    unlockScroll();
     setTimeout(() => {
       if (!menu.classList.contains('is-open')) menu.setAttribute('hidden', '');
     }, 300);
@@ -209,10 +230,41 @@ function initMobileNav() {
   });
 
   if (closeBtn) closeBtn.addEventListener('click', close);
-  menu.querySelectorAll('a').forEach((l) => l.addEventListener('click', close));
 
+  // Klick auf mobile Navigations-Reiter:
+  // Schließt das Menü sofort, hebt den Scroll-Lock auf und scrollt nach ~60ms butterweich zum Ziel
+  menu.querySelectorAll('a[href^="#"]').forEach((link) => {
+    link.addEventListener('click', (e) => {
+      const targetId = link.getAttribute('href');
+      if (!targetId || targetId === '#' || link.hasAttribute('data-modal-open')) return;
+
+      const targetEl = document.querySelector(targetId);
+      if (!targetEl) return;
+
+      e.preventDefault();
+      close();
+
+      // Puffer von 60ms: Stellt sicher, dass das Menü schließt und Lenis wieder aktiv ist
+      setTimeout(() => {
+        if (lenis) {
+          lenis.scrollTo(targetEl, { offset: -80, duration: 1.0 });
+        } else {
+          targetEl.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 60);
+    });
+  });
+
+  // ESC-Taste schließt Menü
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && menu.classList.contains('is-open')) close();
+  });
+
+  // Fenster-Resize-Guard (ab 1140px schließt mobiles Menü automatisch)
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 1140 && menu.classList.contains('is-open')) {
+      close();
+    }
   });
 }
 
@@ -224,8 +276,7 @@ function initModals() {
     modal.removeAttribute('hidden');
     modal.classList.add('open');
     modal.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
-    if (lenis) lenis.stop();
+    lockScroll();
 
     const focusable = modal.querySelector('button, [href], input, select, textarea');
     if (focusable) focusable.focus();
@@ -239,11 +290,7 @@ function initModals() {
       if (!modal.classList.contains('open')) modal.setAttribute('hidden', '');
     }, 300);
 
-    const anyModalOpen = document.querySelector('.legal-modal-backdrop.open');
-    if (!anyModalOpen) {
-      document.body.style.overflow = '';
-      if (lenis) lenis.start();
-    }
+    unlockScroll();
   };
 
   document.querySelectorAll('[data-modal-open]').forEach((btn) => {
@@ -497,7 +544,7 @@ function initFaq() {
       const targetId = btn.getAttribute('aria-controls');
       const content = document.getElementById(targetId);
 
-      // Schließe andere (optional für Übersichtlichkeit)
+      // Schließe andere für klare Übersicht
       triggers.forEach((otherBtn) => {
         if (otherBtn !== btn) {
           otherBtn.setAttribute('aria-expanded', 'false');
